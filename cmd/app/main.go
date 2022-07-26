@@ -12,10 +12,12 @@ import (
 func main() {
 	// config args, priority: config > consul
 	var (
-		configFile  = flag.String("config", "", "config file, prior to use.")
-		consulAddr  = flag.String("consul", "localhost:8500", "consul server address.")
-		serviceName = flag.String("name", "microapp", "both microservice name and kv name.")
-		listenAddr  = flag.String("listen", ":8080", "listen address.")
+		configFile     = flag.String("config", "", "config file, prior to use.")
+		consulAddr     = flag.String("consul", "localhost:8500", "consul server address.")
+		consulInterval = flag.String("interval", "3", "consul health check interval, seconds.")
+		consulTimeout  = flag.String("timeout", "3", "consul health check timeout, seconds.")
+		serviceName    = flag.String("name", "microapp", "both microservice name and kv name.")
+		listenAddr     = flag.String("listen", ":8080", "listen address.")
 	)
 	flag.Parse()
 	host, port := app.GetHostPort(*listenAddr)
@@ -27,7 +29,7 @@ func main() {
 	} else if len(*consulAddr) > 0 {
 		var serviceID string
 		var consulClient *consulapi.Client
-		cfg, consulClient, serviceID, err = app.RegisterAndCfgConsul(*consulAddr, *serviceName, host, port)
+		cfg, consulClient, serviceID, err = app.RegisterAndCfgConsul(*consulAddr, *serviceName, host, port, *consulInterval, *consulTimeout)
 		defer consulClient.Agent().ServiceDeregister(serviceID)
 	} else {
 		log.Fatalf("no input: config file or consul address not provided!")

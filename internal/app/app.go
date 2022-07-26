@@ -80,7 +80,7 @@ func Run(cfg *config.Config, port string) {
 	}
 }
 
-func RegisterAndCfgConsul(consulAddr string, serviceName string, host string, port string) (*config.Config, *consulapi.Client, string, error) {
+func RegisterAndCfgConsul(consulAddr string, serviceName string, host string, port string, consulInterval string, consulTimeout string) (*config.Config, *consulapi.Client, string, error) {
 	// 创建consul api客户端
 	consulConfig := consulapi.DefaultConfig()
 	consulConfig.Address = consulAddr
@@ -91,7 +91,7 @@ func RegisterAndCfgConsul(consulAddr string, serviceName string, host string, po
 
 	var cfg *config.Config
 	var serviceID string
-	serviceID, err = registerService(serviceName, *consulClient, host, port)
+	serviceID, err = registerService(serviceName, *consulClient, host, port, consulInterval, consulTimeout)
 	if err == nil {
 		kv, _, err := consulClient.KV().Get(serviceName, nil)
 		if err == nil {
@@ -117,14 +117,14 @@ func RegisterAndCfgConsul(consulAddr string, serviceName string, host string, po
 }
 
 // RegisterService register service in consul
-func registerService(service string, client consulapi.Client, svcHost string, svcPort string) (string, error) {
+func registerService(service string, client consulapi.Client, svcHost string, svcPort string, consulInterval string, consulTimeout string) (string, error) {
 	svcAddress := svcHost + ":" + svcPort
 
 	// 设置Consul对服务健康检查的参数
 	check := consulapi.AgentServiceCheck{
 		HTTP:     "http://" + svcAddress + "/healthz",
-		Interval: "10s",
-		Timeout:  "10s",
+		Interval: consulInterval + "s",
+		Timeout:  consulTimeout + "s",
 		Notes:    "Consul check service health status.",
 	}
 
