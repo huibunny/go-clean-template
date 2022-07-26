@@ -2,16 +2,15 @@ app:
   name: 'go-clean-template'
   version: '1.0.0'
 
-http:
-  port: '8080'
-
 logger:
   log_level: 'debug'
-  rollbar_env: 'go-clean-template'
+  # rollbar_env: 'go-clean-template'
 
 postgres:
   pool_max: 2
+  url: 'postgresql://dev_user:dev123@dog.ap:5432/clean'
 
 rabbitmq:
-  rpc_server_exchange: 'rpc_server'
-  rpc_client_exchange: 'rpc_client'
+  rpc_server_exchange: 'server.clean'
+  rpc_client_exchange: 'client.clean'
+  url: 'amqp://mq_user:Zk2022@dog.ap:5672/'

@@ -31,7 +31,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Translation) {
 	swaggerHandler := ginSwagger.DisablingWrapHandler(swaggerFiles.Handler, "DISABLE_SWAGGER_HTTP_HANDLER")
 	handler.GET("/swagger/*any", swaggerHandler)
 
-	// K8s probe
+	// K8s probe & consul
 	handler.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	// Prometheus metrics
