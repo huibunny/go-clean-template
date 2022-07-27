@@ -2,7 +2,6 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/gin-gonic/gin"
+	"gopkg.in/yaml.v2"
 
 	"github.com/evrone/go-clean-template/config"
 	amqprpc "github.com/evrone/go-clean-template/internal/controller/amqp_rpc"
@@ -34,6 +34,8 @@ func Run(cfg *config.Config, port string) {
 	pg, err := postgres.New(cfg.PG.URL, postgres.MaxPoolSize(cfg.PG.PoolMax))
 	if err != nil {
 		l.Fatal(fmt.Errorf("app - Run - postgres.New: %w", err))
+	} else {
+		l.Info("app - Run - postgres.")
 	}
 	defer pg.Close()
 
@@ -46,13 +48,21 @@ func Run(cfg *config.Config, port string) {
 	handler := gin.New()
 	v1.NewRouter(handler, l, translationUseCase)
 	httpServer := httpserver.New(handler, httpserver.Port(port))
+	l.Info("app - Run - httpServer: " + port + ".")
 
 	// RabbitMQ RPC Server
-	rmqRouter := amqprpc.NewRouter(translationUseCase)
+	var rmqServer *server.Server
+	if len(cfg.RMQ.URL) > 0 {
+		rmqRouter := amqprpc.NewRouter(translationUseCase)
 
-	rmqServer, err := server.New(cfg.RMQ.URL, cfg.RMQ.ServerExchange, rmqRouter, l)
-	if err != nil {
-		l.Fatal(fmt.Errorf("app - Run - rmqServer - server.New: %w", err))
+		rmqServer, err = server.New(cfg.RMQ.URL, cfg.RMQ.ServerExchange, rmqRouter, l)
+		if err != nil {
+			l.Fatal(fmt.Errorf("app - Run - rmqServer - server.New: %w", err))
+		} else {
+			l.Info("app - Run - rmqServer - server: " + cfg.RMQ.URL + ".")
+		}
+	} else {
+		//
 	}
 
 	// Waiting signal
@@ -64,8 +74,8 @@ func Run(cfg *config.Config, port string) {
 		l.Info("app - Run - signal: " + s.String())
 	case err = <-httpServer.Notify():
 		l.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
-	case err = <-rmqServer.Notify():
-		l.Error(fmt.Errorf("app - Run - rmqServer.Notify: %w", err))
+		// case err = <-rmqServer.Notify():
+		// 	l.Error(fmt.Errorf("app - Run - rmqServer.Notify: %w", err))
 	}
 
 	// Shutdown
@@ -74,9 +84,11 @@ func Run(cfg *config.Config, port string) {
 		l.Error(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
 	}
 
-	err = rmqServer.Shutdown()
-	if err != nil {
-		l.Error(fmt.Errorf("app - Run - rmqServer.Shutdown: %w", err))
+	if rmqServer != nil {
+		err = rmqServer.Shutdown()
+		if err != nil {
+			l.Error(fmt.Errorf("app - Run - rmqServer.Shutdown: %w", err))
+		}
 	}
 }
 
@@ -89,21 +101,15 @@ func RegisterAndCfgConsul(consulAddr string, serviceName string, host string, po
 		os.Exit(1)
 	}
 
-	var cfg *config.Config
+	cfg := &config.Config{}
 	var serviceID string
 	serviceID, err = registerService(serviceName, *consulClient, host, port, consulInterval, consulTimeout)
 	if err == nil {
 		kv, _, err := consulClient.KV().Get(serviceName, nil)
 		if err == nil {
-			var kvMap map[string]interface{}
-			err := json.Unmarshal(kv.Value, &kvMap)
+			// only support yaml kv
+			err = yaml.NewDecoder(strings.NewReader(string(kv.Value))).Decode(cfg)
 			if err == nil {
-				cfg, err = buildConfig(kvMap)
-				if err == nil {
-					//
-				} else {
-					print("error: " + err.Error())
-				}
 			} else {
 				print("error: " + err.Error())
 			}
@@ -143,29 +149,6 @@ func registerService(service string, client consulapi.Client, svcHost string, sv
 	err := client.Agent().ServiceRegister(reg)
 
 	return reg.ID, err
-}
-
-func buildConfig(kvMap map[string]interface{}) (*config.Config, error) {
-	cfg := &config.Config{
-		App: config.App{
-			Name:    kvMap["app"].(map[string]interface{})["name"].(string),
-			Version: kvMap["app"].(map[string]interface{})["version"].(string),
-		},
-		Log: config.Log{
-			Level: kvMap["logger"].(map[string]interface{})["log_level"].(string),
-		},
-		PG: config.PG{
-			PoolMax: int(kvMap["postgres"].(map[string]interface{})["pool_max"].(float64)),
-			URL:     kvMap["postgres"].(map[string]interface{})["url"].(string),
-		},
-		RMQ: config.RMQ{
-			ServerExchange: kvMap["rabbitmq"].(map[string]interface{})["rpc_server_exchange"].(string),
-			ClientExchange: kvMap["rabbitmq"].(map[string]interface{})["rpc_client_exchange"].(string),
-			URL:            kvMap["rabbitmq"].(map[string]interface{})["url"].(string),
-		},
-	}
-
-	return cfg, nil
 }
 
 func GetHostPort(listenAddr string) (string, string) {
