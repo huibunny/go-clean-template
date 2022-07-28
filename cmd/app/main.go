@@ -6,7 +6,6 @@ import (
 
 	"github.com/evrone/go-clean-template/config"
 	"github.com/evrone/go-clean-template/internal/app"
-	consulapi "github.com/hashicorp/consul/api"
 	consulutil "github.com/huibunny/gocore/thirdpart/consul"
 	"github.com/huibunny/gocore/utils"
 )
@@ -30,10 +29,11 @@ func main() {
 	if len(*configFile) > 0 {
 		cfg, err = config.NewConfig(*configFile)
 	} else if len(*consulAddr) > 0 {
-		var serviceID string
-		var consulClient *consulapi.Client
-		consulClient, serviceID, err = consulutil.RegisterAndCfgConsul(cfg, *consulAddr, *serviceName, host, port,
+		consulClient, serviceID, err := consulutil.RegisterAndCfgConsul(cfg, *consulAddr, *serviceName, host, port,
 			*consulInterval, *consulTimeout, *consulFolder)
+		if err != nil {
+			log.Fatalf("fail to register consul: %v.", err)
+		}
 		defer consulutil.DeregisterService(consulClient, serviceID)
 	} else {
 		log.Fatalf("no input: config file or consul address not provided!")
