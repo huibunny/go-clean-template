@@ -7,6 +7,8 @@ import (
 	"github.com/evrone/go-clean-template/config"
 	"github.com/evrone/go-clean-template/internal/app"
 	consulapi "github.com/hashicorp/consul/api"
+	consulutil "github.com/huibunny/gocore/thirdpart/consul"
+	"github.com/huibunny/gocore/utils"
 )
 
 func main() {
@@ -16,21 +18,23 @@ func main() {
 		consulAddr     = flag.String("consul", "localhost:8500", "consul server address.")
 		consulInterval = flag.String("interval", "3", "consul health check interval, seconds.")
 		consulTimeout  = flag.String("timeout", "3", "consul health check timeout, seconds.")
+		consulFolder   = flag.String("folder", "", "consul kv folder.")
 		serviceName    = flag.String("name", "microapp", "both microservice name and kv name.")
 		listenAddr     = flag.String("listen", ":8080", "listen address.")
 	)
 	flag.Parse()
-	host, port := app.GetHostPort(*listenAddr)
+	host, port := utils.GetHostPort(*listenAddr)
 	// Configuration
-	var cfg *config.Config
+	cfg := &config.Config{}
 	var err error
 	if len(*configFile) > 0 {
 		cfg, err = config.NewConfig(*configFile)
 	} else if len(*consulAddr) > 0 {
 		var serviceID string
 		var consulClient *consulapi.Client
-		cfg, consulClient, serviceID, err = app.RegisterAndCfgConsul(*consulAddr, *serviceName, host, port, *consulInterval, *consulTimeout)
-		defer consulClient.Agent().ServiceDeregister(serviceID)
+		consulClient, serviceID, err = consulutil.RegisterAndCfgConsul(cfg, *consulAddr, *serviceName, host, port,
+			*consulInterval, *consulTimeout, *consulFolder)
+		defer consulutil.DeregisterService(consulClient, serviceID)
 	} else {
 		log.Fatalf("no input: config file or consul address not provided!")
 		return
