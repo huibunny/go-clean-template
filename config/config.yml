@@ -6,6 +6,12 @@ logger:
   log_level: 'debug'
   # rollbar_env: 'go-clean-template'
 
+consul:  
+  # consul心跳间隔, 秒
+  interval: 30
+  # 心跳超时, 秒
+  timeout: 20
+
 postgres:
   pool_max: 2
   url: 'postgresql://dev_user:dev123@dog.ap:5432/clean'

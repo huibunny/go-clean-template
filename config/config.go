@@ -9,10 +9,11 @@ import (
 type (
 	// Config -.
 	Config struct {
-		App `yaml:"app"`
-		Log `yaml:"logger"`
-		PG  `yaml:"postgres"`
-		RMQ `yaml:"rabbitmq"`
+		App    `yaml:"app"`
+		Log    `yaml:"logger"`
+		Consul `yaml:"consul"`
+		PG     `yaml:"postgres"`
+		RMQ    `yaml:"rabbitmq"`
 	}
 
 	// App -.
@@ -24,6 +25,12 @@ type (
 	// Log -.
 	Log struct {
 		Level string `env-required:"true" yaml:"log_level"   env:"LOG_LEVEL"`
+	}
+
+	// Consul -.
+	Consul struct {
+		Interval string `env-required:"true" yaml:"interval"   env:"CONSUL_INTERVAL"`
+		Timeout  string `env-required:"true" yaml:"timeout"   env:"CONSUL_TIMEOUT"`
 	}
 
 	// PG -.
