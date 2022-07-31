@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"log"
+	"strings"
 
 	"github.com/evrone/go-clean-template/config"
 	"github.com/evrone/go-clean-template/internal/app"
+	"github.com/hashicorp/consul/api"
 	consulutil "github.com/huibunny/gocore/thirdpart/consul"
 )
 
@@ -22,15 +24,17 @@ func main() {
 	// Configuration
 	cfg := &config.Config{}
 	var err error
+	var consulClient *api.Client
+	var serviceID, port string
 	if len(*configFile) > 0 {
 		cfg, err = config.NewConfig(*configFile)
+		port = strings.Split(*listenAddr, ":")[1]
 	} else if len(*consulAddr) > 0 {
-		consulClient, serviceID, port, err := consulutil.RegisterAndCfgConsul(cfg, *consulAddr, *serviceName, *listenAddr, *consulFolder)
+		consulClient, serviceID, port, err = consulutil.RegisterAndCfgConsul(cfg, *consulAddr, *serviceName, *listenAddr, *consulFolder)
 		if err != nil {
 			log.Fatalf("fail to register consul: %v.", err)
 		}
 		defer consulutil.DeregisterService(consulClient, serviceID)
-		app.Run(cfg, port)
 	} else {
 		log.Fatalf("no input: config file or consul address not provided!")
 		return
@@ -41,4 +45,5 @@ func main() {
 	}
 
 	// Run
+	app.Run(cfg, port)
 }
